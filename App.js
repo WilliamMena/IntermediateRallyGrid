@@ -12,7 +12,7 @@ Ext.define('CustomApp', {
         this.iterComboBox = Ext.create('Rally.ui.combobox.IterationComboBox', {
             listeners: {
                ready: function(combobox) {
-                   this._loadData();
+                   this._loadSeverities();
                 },
                 select: function(combobox, records) {
                     this._loadData();
@@ -23,10 +23,30 @@ Ext.define('CustomApp', {
         
         this.add(this.iterComboBox);
     },
+
+    _loadSeverities: function() {
+        this.severityComboBox = Ext.create('Rally.ui.combobox.FieldValueComboBox', {
+            model: 'Defect',
+            field: 'Severity',
+            listeners: {
+                ready: function(combobox) {
+                    this._loadData();
+                 },
+                 select: function(combobox, records) {
+                     this._loadData();
+                 },
+                 scope: this
+             }
+        });
+
+        this.add(this.severityComboBox);
+    },
     
     _loadData: function() {
         let selectedIterRef = this.iterComboBox.getRecord().get('_ref');
-
+        let selectedSeverityValue = this.severityComboBox.getRecord().get('value');
+        
+        console.log('Selected severity', selectedSeverityValue);
         console.log('selected iter', selectedIterRef);
 
         let myStore = Ext.create('Rally.data.wsapi.Store', {
@@ -37,6 +57,11 @@ Ext.define('CustomApp', {
                     property: 'Iteration',
                     opertation: '=',
                     value: selectedIterRef
+                },
+                {
+                    property: 'Severity',
+                    opertation: '=',
+                    value: selectedSeverityValue
                 }
             ],
             listeners: {
