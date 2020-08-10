@@ -1,104 +1,108 @@
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
+
+    items: [
+        {
+        xtype: 'container',
+        itemId: 'pulldown-container',
+        layout: {
+            type: 'hbox',
+            align: 'stretch'
+        }
+    }],
+
+    myStore: undefined,
+    myGrid: undefined,
+
     launch: function() {
 
         console.log("Our second App!");
 
-        myStore = undefined;
-        myGrid = undefined;
-
-        this.pulldownContainer = Ext.create('Ext.container.Container', {
-            id: 'pulldown-container-id',
-            layout: {
-                type: 'hbox',
-                align: 'stretch'
-            },
-        });
-
-        this.add(this.pulldownContainer);
-
-        // this._loadData();
-        this._loadIteractions();
+        this._loadIterations();
     },
 
-    _loadIteractions: function() {
-        this.iterComboBox = Ext.create('Rally.ui.combobox.IterationComboBox', {
+    _loadIterations: function() {
+        const me = this;
+
+        let iterComboBox = Ext.create('Rally.ui.combobox.IterationComboBox', {
+            itemId: 'iteration-combobox',
             fieldLabel: 'Iteration',
             labelAlign: 'right',
             listeners: {
-               ready: function(combobox) {
-                   this._loadSeverities();
-                },
-                select: function(combobox, records) {
-                    this._loadData();
-                },
-                scope: this
+                ready: me._loadSeverities,
+                select: me._loadData,
+                scope: me
             },
             width: 480,
         });
         
-        this.pulldownContainer.add(this.iterComboBox);
+        this.down('#pulldown-container').add(iterComboBox);
     },
 
     _loadSeverities: function() {
-        this.severityComboBox = Ext.create('Rally.ui.combobox.FieldValueComboBox', {
+        const me = this;
+        let severityComboBox = Ext.create('Rally.ui.combobox.FieldValueComboBox', {
+            itemId: 'severity-combobox',
             model: 'Defect',
             field: 'Severity',
             fieldLabel: 'Severity',
             labelAlign: 'right',
             listeners: {
-                ready: function(combobox) {
-                    this._loadData();
-                 },
-                 select: function(combobox, records) {
-                     this._loadData();
-                 },
-                 scope: this
+                ready: me._loadData,
+                select: me._loadData,
+                scope: me
              }
         });
 
-        this.pulldownContainer.add(this.severityComboBox);
+        this.down('#pulldown-container').add(severityComboBox);
+    },
+
+    // construct filters for defects with given iteration (ref) / severity value
+    _getFilters: function(iterationValue, severityValue) {
+        let iterationFilter = Ext.create('Rally.data.wsapi.Filter', {
+            property: 'Iteration',
+            opertation: '=',
+            value: iterationValue
+        });
+
+        let severityFilter = Ext.create('Rally.data.wsapi.Filter', {
+            property: 'Severity',
+            opertation: '=',
+            value: severityValue
+        });
+
+        return iterationFilter.and(severityFilter);
     },
     
     _loadData: function() {
-        let selectedIterRef = this.iterComboBox.getRecord().get('_ref');
-        let selectedSeverityValue = this.severityComboBox.getRecord().get('value');
-        
-        console.log('Selected severity', selectedSeverityValue);
-        console.log('selected iter', selectedIterRef);
+        const me = this;
 
-        let myFilters = [
-            {
-                property: 'Iteration',
-                opertation: '=',
-                value: selectedIterRef
-            },
-            {
-                property: 'Severity',
-                opertation: '=',
-                value: selectedSeverityValue
-            }
-        ];
+        let selectedIterRef = this.down('#iteration-combobox').getRecord().get('_ref');
+        let selectedSeverityValue = this.down('#severity-combobox').getRecord().get('value');
+    
+        let myFilters = this._getFilters(selectedIterRef, selectedSeverityValue);
+
+        console.log("Combo Filter", myFilters.toString());
 
         // if store exists, just load new data
-        if (this.defectStore) {
-            this.defectStore.setFilter(myFilters);
-            this.defectStore.load();
+        if (me.defectStore) {
+            me.defectStore.setFilter(myFilters);
+            me.defectStore.load();
 
         } else {
             // create store
-            this.defectStore = Ext.create('Rally.data.wsapi.Store', {
+            me.defectStore = Ext.create('Rally.data.wsapi.Store', {
                 model: 'Defect',
                 autoLoad: true,
                 filters: myFilters,
                 listeners: {
                     load: function(myStore, myData, success) {
-                        if (!this.myGrid) {
-                            this._createGrid(myStore);
+                        if (!me.myGrid) {
+                            me._createGrid(myStore);
                         }
                     },
-                    scope: this
+                    scope: me
                 },
                 fetch: ['FormattedID', 'Name', 'Severity', 'Iteration']
             });
@@ -106,15 +110,15 @@ Ext.define('CustomApp', {
     },
 
     _createGrid: function(myStoryStore) {
-
-        this.myGrid = Ext.create('Rally.ui.grid.Grid', {
+        const me = this;
+        me.myGrid = Ext.create('Rally.ui.grid.Grid', {
             store: myStoryStore,
             columnCfgs: [
                 'FormattedID', 'Name', 'Severity', 'Iteration'
             ]
         });
 
-        this.add(this.myGrid);
+        me.add(me.myGrid);
     }
 
 });
